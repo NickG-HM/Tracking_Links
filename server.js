@@ -210,6 +210,22 @@ function isRealCarrierLink(link) {
   return true;
 }
 
+// Replace template placeholders like #{trackingNo}, {trackingNo}, ${trackingNo}, etc.
+function resolveTrackingTemplate(rawUrl, trackingNumber) {
+  if (!rawUrl || !trackingNumber) return rawUrl;
+  let url = String(rawUrl);
+  const tn = encodeURIComponent(String(trackingNumber));
+  const patterns = [
+    /#\{\s*(tracking(?:_?number|_?no|_?num|_?id|_?code)|awb|waybill|consignment|parcel(?:_?id)?)\s*\}/gi,
+    /\$\{\s*(tracking(?:_?number|_?no|_?num|_?id|_?code)|awb|waybill|consignment|parcel(?:_?id)?)\s*\}/gi,
+    /\{\s*(tracking(?:_?number|_?no|_?num|_?id|_?code)|awb|waybill|consignment|parcel(?:_?id)?)\s*\}/gi,
+  ];
+  for (const rx of patterns) {
+    url = url.replace(rx, tn);
+  }
+  return url;
+}
+
 // Heuristic guess by tracking number shape
 function guessCarrierByTrackingNumber(trackingNumber) {
   const tn = String(trackingNumber || '').trim().toUpperCase();
@@ -263,20 +279,32 @@ app.post('/api/links', async (req, res) => {
       lastMileTrackingNumber: track123.lmTrackNo,
     });
 
+    const tnForTemplates = track123.lmTrackNo || trackingNumber || null;
+
     let primaryLink = null;
     if (officialUrl) {
       primaryLink = officialUrl;
     } else {
-      const guessed = guessCarrierByTrackingNumber(trackingNumber);
-      const guessedUrl = buildUrlByGuessedCarrier(guessed, trackingNumber);
-      if (guessedUrl) {
-        primaryLink = guessedUrl;
-      } else if (isRealCarrierLink(track123.courierQueryLink)) {
-        primaryLink = track123.courierQueryLink;
-      } else if (isRealCarrierLink(track123.lastMileQueryLink)) {
-        primaryLink = track123.lastMileQueryLink;
+      // Try resolving templated links first
+      const resolvedCourier = resolveTrackingTemplate(track123.courierQueryLink, tnForTemplates);
+      const resolvedLastMile = resolveTrackingTemplate(track123.lastMileQueryLink, tnForTemplates);
+
+      if (isRealCarrierLink(resolvedCourier)) {
+        primaryLink = resolvedCourier;
+      } else if (isRealCarrierLink(resolvedLastMile)) {
+        primaryLink = resolvedLastMile;
       } else {
-        primaryLink = track123.brandedTrackingLink || track123.courierHomePage || null;
+        const guessed = guessCarrierByTrackingNumber(trackingNumber);
+        const guessedUrl = buildUrlByGuessedCarrier(guessed, trackingNumber);
+        if (guessedUrl) {
+          primaryLink = guessedUrl;
+        } else if (isRealCarrierLink(track123.brandedTrackingLink)) {
+          primaryLink = track123.brandedTrackingLink;
+        } else if (isRealCarrierLink(track123.courierHomePage)) {
+          primaryLink = track123.courierHomePage;
+        } else {
+          primaryLink = null;
+        }
       }
     }
 
