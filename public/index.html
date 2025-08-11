@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Track123 Minimal App</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 40px; }
+    .container { max-width: 520px; margin: 0 auto; }
+    input, button { font-size: 16px; padding: 10px; }
+    input { width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+    button { cursor: pointer; }
+    .links a { display: block; margin: 8px 0; }
+    .error { color: #b00020; }
+    .result { background: #f7f7f8; padding: 12px; border-radius: 8px; }
+    .section { margin-top: 36px; padding-top: 24px; border-top: 1px solid #e6e6e7; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Track123 Minimal App</h1>
+    <p>Enter Shopify order name like <code>#121543</code>.</p>
+    <form id="trackForm">
+      <input id="orderName" type="text" placeholder="#121543" required />
+      <button type="submit">Get Links</button>
+    </form>
+    <div id="status"></div>
+    <div id="output" class="result" style="display:none"></div>
+
+  </div>
+
+  <script>
+    const form = document.getElementById('trackForm');
+    const output = document.getElementById('output');
+    const status = document.getElementById('status');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      output.style.display = 'none';
+      output.innerHTML = '';
+      status.textContent = 'Loading...';
+
+      const orderName = document.getElementById('orderName').value.trim();
+
+      try {
+        const resp = await fetch('/api/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderName })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Request failed');
+
+        status.textContent = '';
+        const lines = [];
+        if (data.courierQueryLink) {
+          lines.push(`<div class=\"links\"><a href=\"${data.courierQueryLink}\" target=\"_blank\" rel=\"noopener noreferrer\">${data.courierQueryLink}</a></div>`);
+        } else {
+          lines.push('<div>No carrier link found.</div>');
+        }
+
+        if (data.parcelsLink) {
+          lines.push(`<div class=\"links\"><a href=\"${data.parcelsLink}\" target=\"_blank\" rel=\"noopener noreferrer\">${data.parcelsLink}</a></div>`);
+        } else {
+          lines.push('<div>No tracking number available for ParcelsApp link.</div>');
+        }
+
+        output.innerHTML = lines.join('');
+        output.style.display = 'block';
+      } catch (err) {
+        status.innerHTML = `<div class=\"error\">${err.message}</div>`;
+      }
+    });
+
+
+  </script>
+</body>
+</html>
