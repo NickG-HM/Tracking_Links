@@ -26,10 +26,12 @@
     </form>
     <div id="status"></div>
     <div id="output" class="result" style="display:none"></div>
-
   </div>
 
   <script>
+    // Simple runtime config: set window.BACKEND_BASE to your server URL when hosted on GitHub Pages
+    window.BACKEND_BASE = window.BACKEND_BASE || '';
+
     const form = document.getElementById('trackForm');
     const output = document.getElementById('output');
     const status = document.getElementById('status');
@@ -43,7 +45,7 @@
       const orderName = document.getElementById('orderName').value.trim();
 
       try {
-        const resp = await fetch('/api/links', {
+        const resp = await fetch(`${window.BACKEND_BASE}/api/links`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orderName })
@@ -54,13 +56,13 @@
         status.textContent = '';
         const lines = [];
         if (data.courierQueryLink) {
-          lines.push(`<div class=\"links\"><a href=\"${data.courierQueryLink}\" target=\"_blank\" rel=\"noopener noreferrer\">${data.courierQueryLink}</a></div>`);
+          lines.push(`<div class="links"><a href="${data.courierQueryLink}" target="_blank" rel="noopener noreferrer">${data.courierQueryLink}</a></div>`);
         } else {
           lines.push('<div>No carrier link found.</div>');
         }
 
         if (data.parcelsLink) {
-          lines.push(`<div class=\"links\"><a href=\"${data.parcelsLink}\" target=\"_blank\" rel=\"noopener noreferrer\">${data.parcelsLink}</a></div>`);
+          lines.push(`<div class="links"><a href="${data.parcelsLink}" target="_blank" rel="noopener noreferrer">${data.parcelsLink}</a></div>`);
         } else {
           lines.push('<div>No tracking number available for ParcelsApp link.</div>');
         }
@@ -68,11 +70,9 @@
         output.innerHTML = lines.join('');
         output.style.display = 'block';
       } catch (err) {
-        status.innerHTML = `<div class=\"error\">${err.message}</div>`;
+        status.innerHTML = `<div class="error">${err.message}</div>`;
       }
     });
-
-
   </script>
 </body>
 </html>

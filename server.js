@@ -2,11 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const path = require('path');
+const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
 // Middleware
+const allowedOrigin = process.env.CORS_ORIGIN || 'https://nickg-hm.github.io';
+app.use(cors({ origin: allowedOrigin }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
