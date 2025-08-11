@@ -34,6 +34,27 @@
     window.BACKEND_BASE = window.BACKEND_BASE || '';
     window.FUNCTION_PATH = window.FUNCTION_PATH || '/api/links';
 
+    function isRealUrl(link) {
+      if (!link || typeof link !== 'string') return false;
+      const trimmed = link.trim();
+      if (!/^https?:\/\//i.test(trimmed)) return false;
+      if (trimmed.includes('#{') || trimmed.includes('${') || trimmed.toLowerCase().includes('{trackingno')) return false;
+      return true;
+    }
+
+    function resolveTrackingTemplate(rawUrl, trackingNumber) {
+      if (!rawUrl || !trackingNumber) return rawUrl;
+      let url = String(rawUrl);
+      const tn = encodeURIComponent(String(trackingNumber));
+      const patterns = [
+        /#\{\s*(tracking(?:_?number|_?no|_?num|_?id|_?code)|awb|waybill|consignment|parcel(?:_?id)?)\s*\}/gi,
+        /\$\{\s*(tracking(?:_?number|_?no|_?num|_?id|_?code)|awb|waybill|consignment|parcel(?:_?id)?)\s*\}/gi,
+        /\{\s*(tracking(?:_?number|_?no|_?num|_?id|_?code)|awb|waybill|consignment|parcel(?:_?id)?)\s*\}/gi,
+      ];
+      for (const rx of patterns) url = url.replace(rx, tn);
+      return url;
+    }
+
     const form = document.getElementById('trackForm');
     const output = document.getElementById('output');
     const status = document.getElementById('status');
@@ -59,8 +80,15 @@
 
         status.textContent = '';
         const lines = [];
-        if (data.courierQueryLink) {
-          lines.push(`<div class="links"><a href="${data.courierQueryLink}" target="_blank" rel="noopener noreferrer">${data.courierQueryLink}</a></div>`);
+
+        const trackingNumber = data.trackingNumber || '';
+        const resolvedCourier = resolveTrackingTemplate(data.courierQueryLink, trackingNumber);
+        const primaryLink = isRealUrl(resolvedCourier)
+          ? resolvedCourier
+          : (isRealUrl(data.courierQueryLink) ? data.courierQueryLink : null);
+
+        if (primaryLink) {
+          lines.push(`<div class="links"><a href="${primaryLink}" target="_blank" rel="noopener noreferrer">${primaryLink}</a></div>`);
         } else {
           lines.push('<div>No carrier link found.</div>');
         }
