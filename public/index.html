@@ -28,9 +28,11 @@
     <div id="output" class="result" style="display:none"></div>
   </div>
 
+  <script src="./config.js"></script>
   <script>
-    // Simple runtime config: set window.BACKEND_BASE to your server URL when hosted on GitHub Pages
+    // Simple runtime config: set window.BACKEND_BASE and window.FUNCTION_PATH in config.js when hosted on GitHub Pages
     window.BACKEND_BASE = window.BACKEND_BASE || '';
+    window.FUNCTION_PATH = window.FUNCTION_PATH || '/api/links';
 
     const form = document.getElementById('trackForm');
     const output = document.getElementById('output');
@@ -46,7 +48,7 @@
 
       try {
         const base = window.BACKEND_BASE || '';
-        const endpointPath = window.BACKEND_BASE ? '/links' : '/api/links';
+        const endpointPath = window.BACKEND_BASE ? (window.FUNCTION_PATH || '/links') : '/api/links';
         const resp = await fetch(`${base}${endpointPath}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
