@@ -45,7 +45,9 @@
       const orderName = document.getElementById('orderName').value.trim();
 
       try {
-        const resp = await fetch(`${window.BACKEND_BASE}/api/links`, {
+        const base = window.BACKEND_BASE || '';
+        const endpointPath = window.BACKEND_BASE ? '/links' : '/api/links';
+        const resp = await fetch(`${base}${endpointPath}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orderName })
