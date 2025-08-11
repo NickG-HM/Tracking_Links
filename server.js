@@ -210,6 +210,24 @@ function isRealCarrierLink(link) {
   return true;
 }
 
+// Heuristic guess by tracking number shape
+function guessCarrierByTrackingNumber(trackingNumber) {
+  const tn = String(trackingNumber || '').trim().toUpperCase();
+  if (!tn) return null;
+  // USPS: 22-digit starting 92/93/94/95, or S10 ending US
+  if (/^(92|93|94|95)\d{18,22}$/.test(tn) || /^[A-Z]{2}\d{9}US$/.test(tn)) return 'usps';
+  // AusPost: S10 ending AU
+  if (/^[A-Z]{2}\d{9}AU$/.test(tn)) return 'auspost';
+  return null;
+}
+
+function buildUrlByGuessedCarrier(guess, trackingNumber) {
+  if (!guess || !trackingNumber) return null;
+  const tn = encodeURIComponent(trackingNumber);
+  if (guess === 'usps') return `https://tools.usps.com/go/TrackConfirmAction?qtc_tLabels1=${tn}`;
+  if (guess === 'auspost') return `https://auspost.com.au/mypost/track/#/details/${tn}`;
+  return null;
+}
 
 
 app.post('/api/links', async (req, res) => {
@@ -248,12 +266,18 @@ app.post('/api/links', async (req, res) => {
     let primaryLink = null;
     if (officialUrl) {
       primaryLink = officialUrl;
-    } else if (isRealCarrierLink(track123.courierQueryLink)) {
-      primaryLink = track123.courierQueryLink;
-    } else if (isRealCarrierLink(track123.lastMileQueryLink)) {
-      primaryLink = track123.lastMileQueryLink;
     } else {
-      primaryLink = track123.brandedTrackingLink || track123.courierHomePage || null;
+      const guessed = guessCarrierByTrackingNumber(trackingNumber);
+      const guessedUrl = buildUrlByGuessedCarrier(guessed, trackingNumber);
+      if (guessedUrl) {
+        primaryLink = guessedUrl;
+      } else if (isRealCarrierLink(track123.courierQueryLink)) {
+        primaryLink = track123.courierQueryLink;
+      } else if (isRealCarrierLink(track123.lastMileQueryLink)) {
+        primaryLink = track123.lastMileQueryLink;
+      } else {
+        primaryLink = track123.brandedTrackingLink || track123.courierHomePage || null;
+      }
     }
 
     const parcelsLink = trackingNumber
