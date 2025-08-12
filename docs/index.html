@@ -30,6 +30,7 @@
       border-radius: 16px;
       box-shadow: 0 10px 20px rgba(2,6,23,0.04);
       padding: 20px;
+      overflow: hidden;
     }
     .row { display: flex; gap: 10px; width: 100%; }
     .row + .row { margin-top: 10px; }
@@ -63,17 +64,17 @@
     .block { display: grid; gap: 8px; }
     .label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 
-    .link-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+    .link-row { display: flex; align-items: center; gap: 10px; width: 100%; overflow: hidden; }
     .link {
-      display: inline-flex; align-items: center;
+      display: block;
       padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
       background: #fff; text-decoration: none; color: var(--text); font-size: 14px;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      flex: 1 1 0%; min-width: 0; max-width: 100%;
+      flex: 1 1 auto; min-width: 0; max-width: 100%;
     }
 
     .copy-btn {
-      height: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--border);
+      height: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--border); flex-shrink: 0;
       background: #f9fafb; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
       transition: background-color .15s ease, border-color .15s ease;
       flex: 0 0 auto;
