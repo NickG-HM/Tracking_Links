@@ -33,9 +33,7 @@
     .row { display: flex; gap: 10px; }
     .row + .row { margin-top: 10px; }
 
-    .field {
-      position: relative; flex: 1;
-    }
+    .field { position: relative; flex: 1; }
     .input {
       width: 100%; height: 44px; padding: 0 14px;
       border: 1px solid var(--border);
@@ -44,10 +42,7 @@
       transition: box-shadow .2s ease, border-color .2s ease, background-color .2s ease;
     }
     .input::placeholder { color: #9ca3af; }
-    .input:focus {
-      background: #fff; border-color: var(--primary);
-      box-shadow: 0 0 0 4px var(--ring);
-    }
+    .input:focus { background: #fff; border-color: var(--primary); box-shadow: 0 0 0 4px var(--ring); }
 
     .btn {
       height: 44px; min-width: 120px; padding: 0 16px; border-radius: 12px; border: 1px solid transparent;
@@ -58,10 +53,8 @@
     }
     .btn:hover { filter: brightness(1.05); }
     .btn:active { transform: translateY(1px); }
-    .btn.secondary {
-      background: #f3f4f6; color: #111827; border-color: var(--border);
-      box-shadow: none;
-    }
+    .btn.secondary { background: #f3f4f6; color: #111827; border-color: var(--border); box-shadow: none; }
+    .btn.full { width: 100%; }
 
     .status { margin-top: 12px; color: var(--muted); font-size: 14px; min-height: 20px; }
 
@@ -71,16 +64,18 @@
 
     .link-row { display: flex; align-items: center; gap: 10px; }
     .link {
-      display: inline-flex; align-items: center; max-width: 100%;
+      display: inline-flex; align-items: center; width: 100%;
       padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
       background: #fff; text-decoration: none; color: var(--text); font-size: 14px;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      flex: 1; min-width: 0;
     }
 
     .copy-btn {
       height: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--border);
       background: #f9fafb; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
       transition: background-color .15s ease, border-color .15s ease;
+      flex: 0 0 auto;
     }
     .copy-btn:hover { background: #fff; border-color: #d1d5db; }
     .copy-icon { width: 16px; height: 16px; fill: currentColor; color: #4b5563; }
@@ -96,7 +91,9 @@
           <div class="field">
             <input id="orderName" class="input" type="text" placeholder="Order name" required />
           </div>
-          <button class="btn" type="submit">Get links</button>
+        </div>
+        <div class="row">
+          <button class="btn full" type="submit">Get links</button>
         </div>
       </form>
       <div id="status" class="status"></div>
@@ -124,12 +121,9 @@
     }
 
     async function copyText(text) {
-      try {
-        await navigator.clipboard.writeText(text);
-        return true;
-      } catch (e) {
-        const ta = document.createElement('textarea');
-        ta.value = text; document.body.appendChild(ta); ta.select();
+      try { await navigator.clipboard.writeText(text); return true; }
+      catch (e) {
+        const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
         try { document.execCommand('copy'); return true; } catch { return false; }
         finally { document.body.removeChild(ta); }
       }
@@ -195,8 +189,8 @@
             <div class="section block">
               <div class="label">Carrier</div>
               <div class="link-row">
-                <a class="link" href="${firstLink}" target="_blank" rel="noopener noreferrer">${firstLink}</a>
                 <button class="copy-btn" data-copy="${firstLink}" aria-label="Copy carrier link">${svgCopy()}<span>Copy</span></button>
+                <a class="link" href="${firstLink}" target="_blank" rel="noopener noreferrer">${firstLink}</a>
               </div>
             </div>
           `);
@@ -207,8 +201,8 @@
             <div class="section block">
               <div class="label">Universal Search</div>
               <div class="link-row">
-                <a class="link" href="${secondLink}" target="_blank" rel="noopener noreferrer">${secondLink}</a>
                 <button class="copy-btn" data-copy="${secondLink}" aria-label="Copy universal link">${svgCopy()}<span>Copy</span></button>
+                <a class="link" href="${secondLink}" target="_blank" rel="noopener noreferrer">${secondLink}</a>
               </div>
             </div>
           `);
@@ -229,7 +223,6 @@
         output.innerHTML = blocks.join('');
         output.style.display = 'block';
 
-        // Wire copy buttons
         output.querySelectorAll('[data-copy]').forEach(btn => {
           btn.addEventListener('click', async () => {
             const text = btn.getAttribute('data-copy');
@@ -272,8 +265,8 @@
                 <div class="section block">
                   <div class="label">Carrier</div>
                   <div class="link-row">
-                    <a class="link" href="${firstLink}" target="_blank" rel="noopener noreferrer">${firstLink}</a>
                     <button class="copy-btn" data-copy="${firstLink}" aria-label="Copy carrier link">${svgCopy()}<span>Copy</span></button>
+                    <a class="link" href="${firstLink}" target="_blank" rel="noopener noreferrer">${firstLink}</a>
                   </div>
                 </div>
               `);
@@ -284,8 +277,8 @@
                 <div class="section block">
                   <div class="label">Universal Search</div>
                   <div class="link-row">
-                    <a class="link" href="${secondLink}" target="_blank" rel="noopener noreferrer">${secondLink}</a>
                     <button class="copy-btn" data-copy="${secondLink}" aria-label="Copy universal link">${svgCopy()}<span>Copy</span></button>
+                    <a class="link" href="${secondLink}" target="_blank" rel="noopener noreferrer">${secondLink}</a>
                   </div>
                 </div>
               `);
@@ -321,11 +314,11 @@
 
             return; // success via fallback
           } catch (e2) {
-            status.innerHTML = `<span class="error">${e2.message}</span>`;
+            status.innerHTML = `<span class=\"error\">${e2.message}</span>`;
             return;
           }
         }
-        status.innerHTML = `<span class="error">${err.message}</span>`;
+        status.innerHTML = `<span class=\"error\">${err.message}</span>`;
       }
     });
   </script>
