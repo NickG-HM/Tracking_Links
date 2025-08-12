@@ -12,7 +12,11 @@ const allowedOrigin = process.env.CORS_ORIGIN || 'https://nickg-hm.github.io';
 app.use(cors({ origin: allowedOrigin }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'docs')));
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'docs', 'index.html'));
+});
 
 // Helpers
 function extractNumericIdFromGid(gid) {
