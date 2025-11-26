@@ -9,7 +9,27 @@ const PORT = process.env.PORT || 8080;
 
 // Middleware
 const allowedOrigin = process.env.CORS_ORIGIN || 'https://nickg-hm.github.io';
-app.use(cors({ origin: allowedOrigin }));
+// Allow Zendesk domains and localhost for development
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    // Allow Zendesk domains
+    if (origin.includes('zendesk.com') || origin.includes('zendesk.co')) {
+      return callback(null, true);
+    }
+    // Allow configured origin
+    if (origin === allowedOrigin) {
+      return callback(null, true);
+    }
+    // Allow localhost for development
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      return callback(null, true);
+    }
+    callback(new Error('Not allowed by CORS'));
+  }
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'docs')));
@@ -88,6 +108,79 @@ async function fetchShopifyOrderByName(orderName) {
   }
 
   return { orderGid, orderNumericId, trackingNumber };
+}
+
+// NEW: Fetch orders by customer email
+async function fetchShopifyOrdersByEmail(email) {
+  const shopDomain = process.env.SHOPIFY_STORE_DOMAIN;
+  const adminToken = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
+
+  if (!shopDomain || !adminToken) {
+    throw new Error('Missing SHOPIFY_STORE_DOMAIN or SHOPIFY_ADMIN_ACCESS_TOKEN in environment');
+  }
+
+  const url = `https://${shopDomain}/admin/api/2024-07/graphql.json`;
+  const query = `
+    query($search: String!) {
+      orders(first: 10, query: $search, sortKey: CREATED_AT, reverse: true) {
+        edges {
+          node {
+            id
+            name
+            createdAt
+            fulfillments {
+              trackingInfo {
+                number
+                company
+                url
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const variables = { search: `email:${email}` };
+
+  const resp = await axios.post(
+    url,
+    { query, variables },
+    {
+      headers: {
+        'X-Shopify-Access-Token': adminToken,
+        'Content-Type': 'application/json',
+      },
+      timeout: 15000,
+    }
+  );
+
+  if (resp.data.errors) {
+    throw new Error('Shopify GraphQL error: ' + JSON.stringify(resp.data.errors));
+  }
+
+  const edges = resp?.data?.data?.orders?.edges || [];
+  const orders = edges.map(edge => {
+    const node = edge.node;
+    const orderGid = node.id;
+    const orderNumericId = extractNumericIdFromGid(orderGid);
+    const orderName = node.name; // e.g., "#146608"
+    
+    let trackingNumber = null;
+    const fulfillments = node.fulfillments || [];
+    if (fulfillments.length > 0 && fulfillments[0].trackingInfo && fulfillments[0].trackingInfo.length > 0) {
+      trackingNumber = fulfillments[0].trackingInfo[0].number || null;
+    }
+    
+    return {
+      orderName,
+      orderNumericId,
+      trackingNumber,
+      createdAt: node.createdAt
+    };
+  });
+
+  return orders;
 }
 
 async function fetchTrack123ByOrderId(orderNumericId) {
@@ -328,6 +421,33 @@ app.post('/api/links', async (req, res) => {
   }
 });
 
+// NEW: Get orders by customer email (for Zendesk App integration)
+app.post('/api/orders-by-email', async (req, res) => {
+  try {
+    let { email } = req.body;
+
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'email is required' });
+    }
+
+    email = email.trim().toLowerCase();
+
+    const orders = await fetchShopifyOrdersByEmail(email);
+
+    if (!orders || orders.length === 0) {
+      return res.status(404).json({ error: 'No orders found for this email', orders: [] });
+    }
+
+    return res.json({
+      email,
+      orders,
+      latestOrder: orders[0] // Most recent order
+    });
+  } catch (err) {
+    const message = err?.response?.data || err.message || 'Unknown error';
+    return res.status(500).json({ error: message });
+  }
+});
 
 
 app.listen(PORT, () => {

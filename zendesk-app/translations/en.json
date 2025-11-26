@@ -1,0 +1,9 @@
+{
+  "app": {
+    "name": "Tracking Links",
+    "short_description": "Get tracking links for orders",
+    "long_description": "Automatically detect order IDs from tickets and retrieve carrier tracking links",
+    "installation_instructions": "Upload the app and configure the API base URL if needed."
+  }
+}
+

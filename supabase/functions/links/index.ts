@@ -1,5 +1,5 @@
 const corsHeaders: Record<string, string> = {
-  "Access-Control-Allow-Origin": "https://nickg-hm.github.io",
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
@@ -9,17 +9,100 @@ function extractNumericIdFromGid(gid: string | null | undefined): string | null 
   return parts[parts.length - 1] || null;
 }
 
+// Fetch orders by customer email from Shopify
+async function fetchOrdersByEmail(email: string, shopDomain: string, adminToken: string): Promise<any[]> {
+  const resp = await fetch(`https://${shopDomain}/admin/api/2024-07/graphql.json`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Access-Token": adminToken,
+    },
+    body: JSON.stringify({
+      query: `query($search: String!) {
+        orders(first: 10, query: $search, sortKey: CREATED_AT, reverse: true) {
+          edges { 
+            node { 
+              id 
+              name 
+              createdAt
+              fulfillments { 
+                trackingInfo { number company url } 
+              } 
+            } 
+          }
+        }
+      }`,
+      variables: { search: `email:${email}` },
+    }),
+  });
+  
+  const json = await resp.json();
+  const edges = json?.data?.orders?.edges || [];
+  
+  return edges.map((edge: any) => {
+    const node = edge.node;
+    const orderNumericId = extractNumericIdFromGid(node.id);
+    const trackingNumber = node?.fulfillments?.[0]?.trackingInfo?.[0]?.number ?? null;
+    
+    return {
+      orderName: node.name,
+      orderNumericId,
+      trackingNumber,
+      createdAt: node.createdAt
+    };
+  });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { orderName } = await req.json();
+    const body = await req.json();
+    const { orderName, email } = body;
+    
+    const SHOPIFY_STORE_DOMAIN = Deno.env.get("SHOPIFY_STORE_DOMAIN");
+    const SHOPIFY_ADMIN_ACCESS_TOKEN = Deno.env.get("SHOPIFY_ADMIN_ACCESS_TOKEN");
+    const TRACK123_UUID = Deno.env.get("TRACK123_UUID");
+    const TRACK123_API_KEY = Deno.env.get("TRACK123_API_KEY");
+
+    if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_ADMIN_ACCESS_TOKEN) {
+      return new Response(
+        JSON.stringify({ error: "Missing required server secrets" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // If email is provided, search orders by email
+    if (email && typeof email === "string") {
+      const orders = await fetchOrdersByEmail(email.trim().toLowerCase(), SHOPIFY_STORE_DOMAIN, SHOPIFY_ADMIN_ACCESS_TOKEN);
+      
+      if (!orders || orders.length === 0) {
+        return new Response(
+          JSON.stringify({ error: "No orders found for this email", orders: [] }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      return new Response(
+        JSON.stringify({ email, orders, latestOrder: orders[0] }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    // Otherwise, search by orderName (original logic)
     if (!orderName || typeof orderName !== "string") {
       return new Response(
-        JSON.stringify({ error: 'orderName is required, e.g., "#121543"' }),
+        JSON.stringify({ error: 'orderName or email is required' }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    if (!TRACK123_UUID || !TRACK123_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "Missing Track123 secrets" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
