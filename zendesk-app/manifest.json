@@ -4,12 +4,15 @@
     "name": "Your Name",
     "email": "your.email@example.com"
   },
-  "version": "1.0.0",
+  "version": "1.0.1",
   "frameworkVersion": "2.0",
   "location": {
     "support": {
       "ticket_sidebar": {
-        "url": "assets/iframe.html"
+        "url": "assets/iframe.html",
+        "size": {
+          "height": "450px"
+        }
       }
     }
   },
