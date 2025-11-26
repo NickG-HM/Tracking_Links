@@ -219,3 +219,42 @@ body {
   display: block;
 }
 
+/* Order selector dropdown */
+.order-selector {
+  margin-top: 10px;
+  padding: 10px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+}
+
+.selector-label {
+  font-size: 12px;
+  color: #0369a1;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.order-select {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.order-select:hover {
+  border-color: #93c5fd;
+}
+
+.order-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+

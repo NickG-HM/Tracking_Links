@@ -4,26 +4,14 @@
   const client = ZAFClient.init();
   // Supabase Edge Function endpoint for API
   const apiBaseUrl = 'https://lrjemtcgiiscpfzypftx.supabase.co/functions/v1/links';
+  
+  // Store all orders for the customer
+  let customerOrders = [];
 
-  // Helper function to extract order ID from text
-  function extractOrderId(text) {
-    if (!text) return null;
-    
-    // Match patterns like #141906 or # 141906 (at least 4 digits)
-    let match = text.match(/#\s*(\d{4,})/);
-    if (match) return `#${match[1]}`;
-    
-    // Match "order 141906" or "order: 141906" patterns
-    match = text.match(/order\s*:?\s*(\d{4,})/i);
-    if (match) return `#${match[1]}`;
-    
-    return null;
-  }
-
-  // Get order ID by fetching orders from Shopify API using requester's email
-  async function getOrderIdByEmail() {
+  // Get all orders by customer email from Shopify API
+  async function getOrdersByEmail() {
     try {
-      console.log('Getting order ID by requester email...');
+      console.log('Getting orders by requester email...');
       
       // Get requester email from ticket
       const ticketData = await client.get(['ticket.requester']);
@@ -31,7 +19,7 @@
       
       if (!requester || !requester.email) {
         console.log('No requester email found');
-        return null;
+        return { orders: [], latestOrder: null };
       }
       
       const email = requester.email;
@@ -51,49 +39,71 @@
       if (!response.ok) {
         const errorData = await response.json();
         console.log('API error:', errorData);
-        return null;
+        return { orders: [], latestOrder: null };
       }
       
       const data = await response.json();
       console.log('Orders by email response:', data);
       
-      if (data.latestOrder && data.latestOrder.orderName) {
-        const orderName = data.latestOrder.orderName;
-        console.log('Found latest order:', orderName);
-        return orderName;
-      }
-      
-      if (data.orders && data.orders.length > 0) {
-        const orderName = data.orders[0].orderName;
-        console.log('Found first order:', orderName);
-        return orderName;
-      }
-      
-      console.log('No orders found for email');
-      return null;
+      return {
+        orders: data.orders || [],
+        latestOrder: data.latestOrder || (data.orders && data.orders[0]) || null
+      };
     } catch (error) {
-      console.error('Error getting order by email:', error);
-      return null;
+      console.error('Error getting orders by email:', error);
+      return { orders: [], latestOrder: null };
     }
   }
 
-  // Detect order ID - uses email-based lookup from Shopify
-  async function detectOrderIdFromTicket() {
-    try {
-      console.log('Detecting order ID...');
-      
-      // Get order ID by requester email (calls Shopify API)
-      const orderId = await getOrderIdByEmail();
-      if (orderId) {
-        console.log('Found order ID by email:', orderId);
-        return orderId;
-      }
+  // Format date for display
+  function formatDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
 
-      console.log('No order ID found');
-      return null;
-    } catch (error) {
-      console.error('Error detecting order ID:', error);
-      return null;
+  // Create and show order selector dropdown
+  function showOrderSelector(orders, orderNameInput) {
+    // Remove existing selector if any
+    const existingSelector = document.getElementById('orderSelector');
+    if (existingSelector) {
+      existingSelector.remove();
+    }
+    
+    if (orders.length <= 1) return;
+    
+    // Create selector container
+    const selectorContainer = document.createElement('div');
+    selectorContainer.id = 'orderSelector';
+    selectorContainer.className = 'order-selector';
+    
+    const label = document.createElement('div');
+    label.className = 'selector-label';
+    label.textContent = `${orders.length} orders found — select one:`;
+    selectorContainer.appendChild(label);
+    
+    const select = document.createElement('select');
+    select.className = 'order-select';
+    select.id = 'orderSelectDropdown';
+    
+    orders.forEach((order, index) => {
+      const option = document.createElement('option');
+      option.value = order.orderName;
+      const dateStr = formatDate(order.createdAt);
+      option.textContent = `${order.orderName}${dateStr ? ' — ' + dateStr : ''}${index === 0 ? ' (latest)' : ''}`;
+      select.appendChild(option);
+    });
+    
+    select.addEventListener('change', () => {
+      orderNameInput.value = select.value;
+    });
+    
+    selectorContainer.appendChild(select);
+    
+    // Insert after the input field
+    const inputRow = orderNameInput.closest('.row');
+    if (inputRow && inputRow.parentNode) {
+      inputRow.parentNode.insertBefore(selectorContainer, inputRow.nextSibling);
     }
   }
 
@@ -171,24 +181,37 @@
     const status = document.getElementById('status');
     const orderNameInput = document.getElementById('orderName');
 
-    // Try to pre-fill order ID from ticket (by email lookup)
-    let detectedOrderId = await detectOrderIdFromTicket();
-    if (detectedOrderId) {
-      orderNameInput.value = detectedOrderId;
-    } else {
+    // Try to get all orders for the customer
+    async function loadOrders() {
+      const result = await getOrdersByEmail();
+      customerOrders = result.orders;
+      
+      if (result.latestOrder && result.latestOrder.orderName) {
+        orderNameInput.value = result.latestOrder.orderName;
+        
+        // Show dropdown if multiple orders
+        if (customerOrders.length > 1) {
+          showOrderSelector(customerOrders, orderNameInput);
+        }
+        return true;
+      }
+      return false;
+    }
+
+    // Initial load
+    let loaded = await loadOrders();
+    
+    if (!loaded) {
       // Retry up to 3 times with 2 second intervals
       let retryCount = 0;
       const maxRetries = 3;
-      const retryInterval = 2000; // 2 seconds
+      const retryInterval = 2000;
       
       const retryDetection = setInterval(async () => {
         retryCount++;
-        detectedOrderId = await detectOrderIdFromTicket();
+        loaded = await loadOrders();
         
-        if (detectedOrderId && !orderNameInput.value) {
-          orderNameInput.value = detectedOrderId;
-          clearInterval(retryDetection);
-        } else if (retryCount >= maxRetries) {
+        if (loaded || retryCount >= maxRetries) {
           clearInterval(retryDetection);
         }
       }, retryInterval);
