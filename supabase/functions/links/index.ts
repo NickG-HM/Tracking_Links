@@ -106,18 +106,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const SHOPIFY_STORE_DOMAIN = Deno.env.get("SHOPIFY_STORE_DOMAIN");
-    const SHOPIFY_ADMIN_ACCESS_TOKEN = Deno.env.get("SHOPIFY_ADMIN_ACCESS_TOKEN");
-    const TRACK123_UUID = Deno.env.get("TRACK123_UUID");
-    const TRACK123_API_KEY = Deno.env.get("TRACK123_API_KEY");
-
-    if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_ADMIN_ACCESS_TOKEN || !TRACK123_UUID || !TRACK123_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "Missing required server secrets" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const name = orderName.startsWith("#") ? orderName : `#${orderName}`;
 
     // Shopify: find order by name
